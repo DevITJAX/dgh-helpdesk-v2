@@ -1,0 +1,47 @@
+# Local development only: spin up backend (Spring Boot) and frontend (React via Nginx)
+# Not used in CI/CD. GitHub Actions builds images and Azure Container Instances run them.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      JAVA_OPTS: -XX:MaxRAMPercentage=75
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persist H2 database data
+      - ./backend/data:/app/data
+      # Mount application properties for easy configuration changes
+      - ./backend/src/main/resources:/app/config:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_BASE_URL: http://localhost:8080
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    volumes:
+      # Mount public assets for development (optional)
+      - ./frontend/public:/usr/share/nginx/html/public:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped

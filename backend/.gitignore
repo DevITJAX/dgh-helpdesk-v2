@@ -1,0 +1,6 @@
+# Compiled Java classes
+target/
+
+# H2 Database files
+data/*.mv.db
+data/*.trace.db

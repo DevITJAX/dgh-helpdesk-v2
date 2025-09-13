@@ -1,0 +1,59 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: dgh-helpdesk
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/dgh-helpdesk-main-backend:latest
+
+      - name: Build & push frontend image (with API URL)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            REACT_APP_API_BASE_URL=${{ secrets.FRONTEND_API_URL }}
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/dgh-helpdesk-main-frontend:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Restart ACI to pull latest images
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az container restart -g "${{ secrets.RESOURCE_GROUP }}" -n "${{ secrets.ACI_BACKEND_NAME }}"
+            sleep 20
+            az container restart -g "${{ secrets.RESOURCE_GROUP }}" -n "${{ secrets.ACI_FRONTEND_NAME }}"
