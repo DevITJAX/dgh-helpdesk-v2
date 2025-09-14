@@ -1,0 +1,242 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_CONTAINER_REGISTRY: dghhelpdesk.azurecr.io
+  CONTAINER_NAME_BACKEND: dgh-helpdesk-backend
+  CONTAINER_NAME_FRONTEND: dgh-helpdesk-frontend
+  RESOURCE_GROUP: dgh-helpdesk-rg
+  LOCATION: "East US"
+  CONTAINER_APP_ENVIRONMENT: dgh-helpdesk-env
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        mvn clean test
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci --legacy-peer-deps
+    
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false --passWithNoTests
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Login to Azure Container Registry
+      run: |
+        az acr login --name dghhelpdesk
+    
+    - name: Build and push backend image
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} ./backend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest ./backend
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest
+    
+    - name: Build and push frontend image
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} ./frontend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest ./frontend
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
+
+  deploy-infrastructure:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Container App Environment
+      run: |
+        # Check if environment already exists
+        if az containerapp env show --name ${{ env.CONTAINER_APP_ENVIRONMENT }} --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Container App Environment already exists"
+        else
+          echo "Creating Container App Environment..."
+          az containerapp env create \
+            --name ${{ env.CONTAINER_APP_ENVIRONMENT }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --location "${{ env.LOCATION }}"
+        fi
+
+  deploy-backend:
+    needs: [build-and-push, deploy-infrastructure]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy Backend Container App
+      run: |
+        # Check if container app already exists
+        if az containerapp show --name dgh-helpdesk-backend --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Updating existing backend container app..."
+          az containerapp update \
+            --name dgh-helpdesk-backend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
+            --registry-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
+        else
+          echo "Creating new backend container app..."
+          az containerapp create \
+            --name dgh-helpdesk-backend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --environment ${{ env.CONTAINER_APP_ENVIRONMENT }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
+            --registry-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --target-port 8080 \
+            --ingress external \
+            --cpu 1.0 \
+            --memory 2.0Gi \
+            --min-replicas 1 \
+            --max-replicas 3 \
+            --env-vars \
+              SPRING_PROFILES_ACTIVE=prod \
+              JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
+            --secrets \
+              ldap-server-url="${{ secrets.LDAP_SERVER_URL }}" \
+              ldap-server-domain="${{ secrets.LDAP_SERVER_DOMAIN }}" \
+              ldap-server-bind-user="${{ secrets.LDAP_SERVER_BIND_USER }}" \
+              ldap-server-bind-password="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" \
+              ldap-server-search-base="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" \
+              jwt-secret="${{ secrets.JWT_SECRET }}" \
+            --secret-env-vars \
+              LDAP_SERVER_URL=ldap-server-url \
+              LDAP_SERVER_DOMAIN=ldap-server-domain \
+              LDAP_SERVER_BIND_USER=ldap-server-bind-user \
+              LDAP_SERVER_BIND_PASSWORD=ldap-server-bind-password \
+              LDAP_SERVER_SEARCH_BASE=ldap-server-search-base \
+              JWT_SECRET=jwt-secret
+        fi
+
+  deploy-frontend:
+    needs: [build-and-push, deploy-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get Backend URL
+      id: get-backend-url
+      run: |
+        BACKEND_URL=$(az containerapp show --name dgh-helpdesk-backend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
+        echo "BACKEND_URL=https://$BACKEND_URL" >> $GITHUB_OUTPUT
+    
+    - name: Deploy Frontend Container App
+      run: |
+        # Check if container app already exists
+        if az containerapp show --name dgh-helpdesk-frontend --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          echo "Updating existing frontend container app..."
+          az containerapp update \
+            --name dgh-helpdesk-frontend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+            --registry-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --set-env-vars \
+              REACT_APP_API_BASE_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
+        else
+          echo "Creating new frontend container app..."
+          az containerapp create \
+            --name dgh-helpdesk-frontend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --environment ${{ env.CONTAINER_APP_ENVIRONMENT }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+            --registry-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --target-port 80 \
+            --ingress external \
+            --cpu 0.5 \
+            --memory 1.0Gi \
+            --min-replicas 1 \
+            --max-replicas 2 \
+            --env-vars \
+              REACT_APP_API_BASE_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
+        fi
+
+  notify:
+    needs: [deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Deployment Status
+      run: |
+        if [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
+          echo "✅ Deployment successful!"
+          echo "🌐 Backend URL: https://$(az containerapp show --name dgh-helpdesk-backend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)"
+          echo "🌐 Frontend URL: https://$(az containerapp show --name dgh-helpdesk-frontend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)"
+        else
+          echo "❌ Deployment failed!"
+        fi
