@@ -1,0 +1,147 @@
+name: Deploy to Azure Container Instances
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_CONTAINER_REGISTRY: dghhelpdesk.azurecr.io
+  CONTAINER_NAME_BACKEND: dgh-helpdesk-backend
+  CONTAINER_NAME_FRONTEND: dgh-helpdesk-frontend
+  RESOURCE_GROUP: dgh-helpdesk-rg
+  LOCATION: East US
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        mvn clean test
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci --legacy-peer-deps
+    
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Build and push backend image
+      run: |
+        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --image ${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} \
+          --image ${{ env.CONTAINER_NAME_BACKEND }}:latest \
+          ./backend
+    
+    - name: Build and push frontend image
+      run: |
+        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --image ${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} \
+          --image ${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+          ./frontend
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy Backend to Azure Container Instances
+      run: |
+        az container create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name dgh-helpdesk-backend \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
+          --registry-login-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
+          --cpu 1 \
+          --memory 2 \
+          --ports 8080 \
+          --environment-variables \
+            SPRING_PROFILES_ACTIVE=prod \
+            JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
+          --secure-environment-variables \
+            LDAP_SERVER_URL="${{ secrets.LDAP_SERVER_URL }}" \
+            LDAP_SERVER_DOMAIN="${{ secrets.LDAP_SERVER_DOMAIN }}" \
+            LDAP_SERVER_BIND_USER="${{ secrets.LDAP_SERVER_BIND_USER }}" \
+            LDAP_SERVER_BIND_PASSWORD="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" \
+            LDAP_SERVER_SEARCH_BASE="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+          --restart-policy Always \
+          --dns-name-label dgh-helpdesk-backend \
+          --location ${{ env.LOCATION }}
+    
+    - name: Deploy Frontend to Azure Container Instances
+      run: |
+        # Get backend IP for frontend configuration
+        BACKEND_IP=$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.ip" --output tsv)
+        
+        az container create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name dgh-helpdesk-frontend \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+          --registry-login-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
+          --cpu 0.5 \
+          --memory 1 \
+          --ports 80 \
+          --environment-variables \
+            REACT_APP_API_BASE_URL=http://$BACKEND_IP:8080 \
+          --restart-policy Always \
+          --dns-name-label dgh-helpdesk-frontend \
+          --location ${{ env.LOCATION }}
+    
+    - name: Get deployment URLs
+      run: |
+        echo "Backend URL: http://$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.fqdn" --output tsv):8080"
+        echo "Frontend URL: http://$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-frontend --query "ipAddress.fqdn" --output tsv)"
