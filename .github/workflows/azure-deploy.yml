@@ -67,19 +67,23 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
+    - name: Login to Azure Container Registry
+      run: |
+        az acr login --name dghhelpdesk
+    
     - name: Build and push backend image
       run: |
-        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
-          --image ${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} \
-          --image ${{ env.CONTAINER_NAME_BACKEND }}:latest \
-          ./backend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} ./backend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest ./backend
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest
     
     - name: Build and push frontend image
       run: |
-        az acr build --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
-          --image ${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} \
-          --image ${{ env.CONTAINER_NAME_FRONTEND }}:latest \
-          ./frontend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} ./frontend
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest ./frontend
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }}
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
 
   deploy:
     needs: build-and-push
