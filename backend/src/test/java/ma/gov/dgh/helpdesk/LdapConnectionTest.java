@@ -14,7 +14,7 @@ import java.util.Hashtable;
  * Test class to verify LDAP connection and authentication
  * This is a manual test to verify the LDAP configuration
  */
-@SpringBootTest
+@SpringBootTest(classes = ma.gov.dgh.helpdesk.dgh_helpdesk.DghHelpdeskApplication.class)
 @ActiveProfiles("prod")
 public class LdapConnectionTest {
 
