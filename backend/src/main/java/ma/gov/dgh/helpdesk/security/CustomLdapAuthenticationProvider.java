@@ -281,19 +281,19 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
             System.out.println("Checking group: " + group + " (lowercase: " + groupLower + ")");
             
             // Check for admin groups
-            if (group.equalsIgnoreCase("Helpdesk_Admin")) {
+            if (group.contains("DGH_Helpdesk_Admins")) {
                 System.out.println("User " + username + " assigned ADMIN role based on group: " + group);
                 return UserRole.ADMIN;
             }
             
             // Check for technician groups
-            if (group.equalsIgnoreCase("Helpdesk_Tech")) {
+            if (group.contains("DGH_Helpdesk_Technicians")) {
                 System.out.println("User " + username + " assigned TECHNICIAN role based on group: " + group);
                 return UserRole.TECHNICIAN;
             }
 
-            // Check for employee groups (Helpdesk_User)
-            if (group.equalsIgnoreCase("Helpdesk_User")) {
+            // Check for employee groups
+            if (group.contains("DGH_Helpdesk_Employees")) {
                 System.out.println("User " + username + " assigned EMPLOYEE role based on group: " + group);
                 return UserRole.EMPLOYEE;
             }

@@ -12,10 +12,10 @@ import org.springframework.context.annotation.Profile;
 @Profile("prod")
 public class LdapConfig {
     
-    private String url = "ldap://68.221.171.67:389";
+    private String url = "ldap://135.232.121.145:389";
     private String domain = "dgh.local";
     private String bindUser = "CN=adminuser,CN=Users,DC=dgh,DC=local";
-    private String bindPassword = "Dgh@2025Bind!";
+    private String bindPassword = "Admin@2025!Complex123XYZ";
     private String searchBase = "CN=Users,DC=dgh,DC=local";
     
     // Getters and Setters
