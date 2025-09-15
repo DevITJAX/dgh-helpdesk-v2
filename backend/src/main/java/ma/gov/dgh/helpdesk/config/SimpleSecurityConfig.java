@@ -43,7 +43,7 @@ public class SimpleSecurityConfig {
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
             .sessionManagement(session -> session
-                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED)
+                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.ALWAYS)
                 .maximumSessions(1)
                 .maxSessionsPreventsLogin(false)
             )
@@ -71,7 +71,8 @@ public class SimpleSecurityConfig {
             "https://*.azurecontainerapps.io",
             "https://*.azurewebsites.net",
             "https://*.azure.com",
-            "https://*.cloudapp.azure.com"
+            "https://*.cloudapp.azure.com",
+            "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
