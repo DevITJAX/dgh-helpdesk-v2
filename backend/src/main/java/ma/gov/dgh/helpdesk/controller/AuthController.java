@@ -185,16 +185,22 @@ public class AuthController {
     public ResponseEntity<UserInfoResponse> getCurrentUser(HttpServletRequest request) {
         System.out.println("=== GET /me ENDPOINT CALLED ===");
         System.out.println("Session ID: " + (request.getSession(false) != null ? request.getSession(false).getId() : "NO SESSION"));
+        System.out.println("Request headers: " + request.getHeaderNames());
+        System.out.println("Cookies: " + java.util.Arrays.toString(request.getCookies()));
+        
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         System.out.println("Authentication: " + authentication);
         System.out.println("Is authenticated: " + (authentication != null && authentication.isAuthenticated()));
+        System.out.println("Principal type: " + (authentication != null ? authentication.getPrincipal().getClass().getName() : "NULL"));
 
         if (authentication == null || !authentication.isAuthenticated() ||
             "anonymousUser".equals(authentication.getPrincipal())) {
+            System.out.println("Authentication failed - returning 401");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         Object principal = authentication.getPrincipal();
+        System.out.println("Principal object: " + principal);
         
         // Handle both CustomUserDetails and Spring Security User
         Long userId;

@@ -1,6 +1,8 @@
 package ma.gov.dgh.helpdesk.config;
 
 import ma.gov.dgh.helpdesk.security.CustomLdapAuthenticationProvider;
+import ma.gov.dgh.helpdesk.security.SessionRestorationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -20,9 +22,11 @@ import java.util.Arrays;
 public class SimpleSecurityConfig {
 
     private final CustomLdapAuthenticationProvider customLdapAuthenticationProvider;
+    private final SessionRestorationFilter sessionRestorationFilter;
 
-    public SimpleSecurityConfig(CustomLdapAuthenticationProvider customLdapAuthenticationProvider) {
+    public SimpleSecurityConfig(CustomLdapAuthenticationProvider customLdapAuthenticationProvider, SessionRestorationFilter sessionRestorationFilter) {
         this.customLdapAuthenticationProvider = customLdapAuthenticationProvider;
+        this.sessionRestorationFilter = sessionRestorationFilter;
     }
 
     @Bean
@@ -49,7 +53,7 @@ public class SimpleSecurityConfig {
             )
             .httpBasic(httpBasic -> {})
             .formLogin(form -> {})
-            .addFilterBefore(new org.springframework.security.web.context.SecurityContextPersistenceFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(sessionRestorationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

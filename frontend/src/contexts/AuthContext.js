@@ -91,10 +91,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        console.log('AuthContext: Starting authentication check...');
         // Try to get user info using the auth service
         const user = await authService.getUserInfo();
+        console.log('AuthContext: getUserInfo result:', user);
         
-        if (user) {
+        if (user && user.username) {
           // Get current token from auth service
           const token = await authService.getToken();
           console.log('AuthContext: Retrieved user from service:', user);
@@ -105,10 +107,11 @@ export const AuthProvider = ({ children }) => {
             payload: { user, token }
           });
         } else {
-          console.log('AuthContext: No user found, logging out');
+          console.log('AuthContext: No valid user found, logging out. User object:', user);
           dispatch({ type: AUTH_ACTIONS.LOGOUT });
         }
       } catch (error) {
+        console.error('AuthContext: Authentication check failed:', error);
         // Clear any invalid tokens
         authService.clearTokens();
         dispatch({ type: AUTH_ACTIONS.LOGOUT });

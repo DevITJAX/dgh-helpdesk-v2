@@ -135,12 +135,14 @@ export const authService = {
     try {
       // For session-based auth, we don't need to pass the token in headers
       // The session cookie will be automatically included
+      console.log('AuthService: Calling /api/auth/me...');
       const response = await apiClient.get('/api/auth/me');
+      console.log('AuthService: Response received:', response.data);
       
       // Handle the response format from the backend
       const { userId, username, fullName, email, department, role, isActive } = response.data;
       
-      return {
+      const userInfo = {
         userId,
         username,
         fullName,
@@ -149,8 +151,13 @@ export const authService = {
         role,
         isActive: isActive !== false // Default to true if not specified
       };
+      
+      console.log('AuthService: Processed user info:', userInfo);
+      return userInfo;
     } catch (error) {
-      console.error('Failed to get user info:', error);
+      console.error('AuthService: Failed to get user info:', error);
+      console.error('AuthService: Error response:', error.response?.data);
+      console.error('AuthService: Error status:', error.response?.status);
       throw new Error('Failed to get user info');
     }
   },
