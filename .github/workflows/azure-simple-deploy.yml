@@ -138,9 +138,9 @@ jobs:
         echo "Waiting for backend container to be ready..."
         sleep 30
         
-        # Get backend IP
-        BACKEND_IP=$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.ip" --output tsv)
-        echo "Backend IP: $BACKEND_IP"
+        # Get backend FQDN
+        BACKEND_FQDN=$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.fqdn" --output tsv)
+        echo "Backend FQDN: $BACKEND_FQDN"
         
         echo "Creating frontend container..."
         az container create \
@@ -155,7 +155,7 @@ jobs:
           --memory 1 \
           --ports 80 \
           --environment-variables \
-            REACT_APP_API_BASE_URL=http://$BACKEND_IP:8080 \
+            REACT_APP_API_BASE_URL=http://$BACKEND_FQDN:8080 \
           --restart-policy Always \
           --dns-name-label dgh-helpdesk-frontend-westus2 \
           --location "${{ env.LOCATION }}"
