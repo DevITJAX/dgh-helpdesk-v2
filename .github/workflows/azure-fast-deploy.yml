@@ -131,23 +131,16 @@ jobs:
           --cpu 1 \
           --memory 2 \
           --ports 8080 \
-          --environment-variables \
-            SPRING_PROFILES_ACTIVE=prod \
-            JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
-          --secure-environment-variables \
-            LDAP_SERVER_URL="${{ secrets.LDAP_SERVER_URL }}" \
-            LDAP_SERVER_DOMAIN="${{ secrets.LDAP_SERVER_DOMAIN }}" \
-            LDAP_SERVER_BIND_USER="${{ secrets.LDAP_SERVER_BIND_USER }}" \
-            LDAP_SERVER_BIND_PASSWORD="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" \
-            LDAP_SERVER_SEARCH_BASE="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" \
-            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+          --environment-variables SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
+          --secure-environment-variables LDAP_SERVER_URL="${{ secrets.LDAP_SERVER_URL }}" LDAP_SERVER_DOMAIN="${{ secrets.LDAP_SERVER_DOMAIN }}" LDAP_SERVER_BIND_USER="${{ secrets.LDAP_SERVER_BIND_USER }}" LDAP_SERVER_BIND_PASSWORD="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" LDAP_SERVER_SEARCH_BASE="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" JWT_SECRET="${{ secrets.JWT_SECRET }}" \
           --restart-policy Always \
           --dns-name-label dgh-helpdesk-backend-westus2 \
-          --location "${{ env.LOCATION }}"
+          --location "${{ env.LOCATION }}" \
+          --output table
         
         # Wait for backend to be ready
         echo "Waiting for backend container to be ready..."
-        sleep 20
+        sleep 30
         
         echo "Creating frontend container..."
         az container create \
@@ -163,7 +156,8 @@ jobs:
           --ports 80 \
           --restart-policy Always \
           --dns-name-label dgh-helpdesk-frontend-westus2 \
-          --location "${{ env.LOCATION }}"
+          --location "${{ env.LOCATION }}" \
+          --output table
     
     - name: Get deployment URLs
       run: |
