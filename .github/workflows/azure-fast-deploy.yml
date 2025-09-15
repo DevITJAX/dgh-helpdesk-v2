@@ -1,11 +1,15 @@
-name: Deploy to Azure Container Instances (Simple)
+name: Deploy to Azure Container Instances (Fast)
 
-# DISABLED - Use azure-fast-deploy.yml instead
-# on:
-#   push:
-#     branches: [ main ]
-#   pull_request:
-#     branches: [ main ]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests for quick deployment'
+        required: false
+        default: false
+        type: boolean
 
 env:
   AZURE_CONTAINER_REGISTRY: dghhelpdesk.azurecr.io
@@ -17,6 +21,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
     steps:
     - uses: actions/checkout@v4
     
@@ -56,9 +61,12 @@ jobs:
         npm test -- --coverage --watchAll=false --passWithNoTests
 
   build-and-push:
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    needs: test
+    strategy:
+      matrix:
+        service: [backend, frontend]
     
     steps:
     - uses: actions/checkout@v4
@@ -72,19 +80,21 @@ jobs:
       run: |
         az acr login --name dghhelpdesk
     
-    - name: Build and push backend image
+    - name: Build and push ${{ matrix.service }} image
       run: |
         docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} ./backend
         docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest ./backend
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }}
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest
+      if: matrix.service == 'backend'
     
-    - name: Build and push frontend image
+    - name: Build and push ${{ matrix.service }} image
       run: |
         docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} ./frontend
         docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest ./frontend
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }}
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
+      if: matrix.service == 'frontend'
 
   deploy:
     needs: build-and-push
@@ -107,7 +117,7 @@ jobs:
         az container delete --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-frontend --yes 2>/dev/null || echo "Frontend container not found"
         
         # Wait for cleanup
-        sleep 15
+        sleep 10
         
         echo "Creating backend container in West US 2..."
         az container create \
@@ -137,7 +147,7 @@ jobs:
         
         # Wait for backend to be ready
         echo "Waiting for backend container to be ready..."
-        sleep 30
+        sleep 20
         
         echo "Creating frontend container..."
         az container create \
