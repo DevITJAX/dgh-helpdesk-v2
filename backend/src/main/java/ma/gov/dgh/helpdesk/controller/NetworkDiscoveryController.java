@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
  */
 @RestController
 @RequestMapping("/api/network-discovery")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(origins = {"http://localhost:4200", "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"})
 public class NetworkDiscoveryController {
     
     private final NetworkDiscoveryService networkDiscoveryService;

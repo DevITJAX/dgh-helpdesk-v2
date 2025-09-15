@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:4200"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:4200", "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"})
 public class UserController {
     
     private final UserService userService;
