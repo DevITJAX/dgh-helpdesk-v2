@@ -138,19 +138,6 @@ jobs:
         echo "Waiting for backend container to be ready..."
         sleep 30
         
-        # Get backend FQDN
-        BACKEND_FQDN=$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.fqdn" --output tsv)
-        echo "Backend FQDN: $BACKEND_FQDN"
-        
-        # Build frontend with the correct API URL
-        echo "Building frontend with API URL: http://$BACKEND_FQDN:8080"
-        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
-          --build-arg REACT_APP_API_BASE_URL=http://$BACKEND_FQDN:8080 \
-          ./frontend
-        
-        # Push the updated image
-        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
-        
         echo "Creating frontend container..."
         az container create \
           --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -163,8 +150,6 @@ jobs:
           --cpu 0.5 \
           --memory 1 \
           --ports 80 \
-          --environment-variables \
-            REACT_APP_API_BASE_URL=http://$BACKEND_FQDN:8080 \
           --restart-policy Always \
           --dns-name-label dgh-helpdesk-frontend-westus2 \
           --location "${{ env.LOCATION }}"
