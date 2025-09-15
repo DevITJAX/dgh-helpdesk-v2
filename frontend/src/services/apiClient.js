@@ -2,12 +2,14 @@ import axios from 'axios';
 import { authService } from './authService';
 
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080', // Backend URL from environment or Azure fallback - FORCE REBUILD
+  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080', // Default to localhost for development
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Enable cookies for session-based auth
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
 // Debug: Log the API base URL being used
@@ -23,6 +25,9 @@ apiClient.interceptors.request.use(
       const tokenExpiry = authService.getTokenExpiry();
       if (tokenExpiry) {
         console.log('Session-based request - cookies will be included automatically');
+        console.log('Request URL:', config.url);
+        console.log('Request method:', config.method);
+        console.log('With credentials:', config.withCredentials);
       }
     } catch (error) {
       console.warn('Request interceptor error:', error.message);

@@ -7,6 +7,7 @@ VALUES
 -- Admin users
 ('aalami', 'aalami@dgh.gov.ma', 'Aalami', 'IT Department', 'ADMIN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('fbenali', 'fbenali@dgh.gov.ma', 'Fbenali', 'IT Department', 'ADMIN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ybenkirane', 'ybenkirane@dgh.gov.ma', 'Youssef Benkirane', 'IT Department', 'ADMIN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 -- Technician users
 ('ochakir', 'ochakir@dgh.gov.ma', 'Ochakir', 'IT Department', 'TECHNICIAN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('amansouri', 'amansouri@dgh.gov.ma', 'Amansouri', 'IT Department', 'TECHNICIAN', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

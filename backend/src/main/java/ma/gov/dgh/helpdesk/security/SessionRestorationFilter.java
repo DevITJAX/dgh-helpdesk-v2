@@ -24,7 +24,11 @@ public class SessionRestorationFilter implements Filter {
         
         System.out.println("=== SESSION RESTORATION FILTER ===");
         System.out.println("Request URI: " + httpRequest.getRequestURI());
+        System.out.println("Request method: " + httpRequest.getMethod());
         System.out.println("Session ID: " + (session != null ? session.getId() : "NO SESSION"));
+        System.out.println("Cookies: " + java.util.Arrays.toString(httpRequest.getCookies()));
+        System.out.println("Origin: " + httpRequest.getHeader("Origin"));
+        System.out.println("Referer: " + httpRequest.getHeader("Referer"));
         
         if (session != null) {
             Object securityContext = session.getAttribute("SPRING_SECURITY_CONTEXT");
@@ -36,6 +40,10 @@ public class SessionRestorationFilter implements Filter {
                 SecurityContextHolder.setContext(context);
                 System.out.println("Security context restored: " + SecurityContextHolder.getContext().getAuthentication());
             }
+        } else {
+            System.out.println("No session found - creating new session");
+            session = httpRequest.getSession(true);
+            System.out.println("New session created with ID: " + session.getId());
         }
         
         chain.doFilter(request, response);

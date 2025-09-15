@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 
 @Configuration
@@ -42,6 +43,7 @@ public class SimpleSecurityConfig {
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/auth/test-json").permitAll()
                 .requestMatchers("/api/auth/test-json-object").permitAll()
+                .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
@@ -53,6 +55,17 @@ public class SimpleSecurityConfig {
             )
             .httpBasic(httpBasic -> {})
             .formLogin(form -> {})
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
+            )
             .addFilterBefore(sessionRestorationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -71,17 +84,20 @@ public class SimpleSecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
             "http://localhost:*", 
             "https://localhost:*",
+            "http://127.0.0.1:*",
+            "https://127.0.0.1:*",
             "http://*.azurecontainer.io",
             "https://*.azurecontainer.io",
             "https://*.azurecontainerapps.io",
             "https://*.azurewebsites.net",
             "https://*.azure.com",
             "https://*.cloudapp.azure.com",
-            "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"
+            "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io",
+            "http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Set-Cookie"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

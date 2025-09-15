@@ -90,8 +90,8 @@ jobs:
     
     - name: Build and push ${{ matrix.service }} image
       run: |
-        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} ./frontend
-        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest ./frontend
+        docker build --build-arg REACT_APP_API_BASE_URL=http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080 -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} ./frontend
+        docker build --build-arg REACT_APP_API_BASE_URL=http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080 -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest ./frontend
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }}
         docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
       if: matrix.service == 'frontend'

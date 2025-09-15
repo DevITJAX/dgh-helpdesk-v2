@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {"http://localhost:3000", "http://20.124.43.230", "http://20.124.43.230:80", "https://dgh-helpdesk-h8ahdqhmhtdhg4bh.centralus-01.azurewebsites.net", "http://dgh-frontend-unique.eastus.azurecontainer.io", "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://20.124.43.230", "http://20.124.43.230:80", "https://dgh-helpdesk-h8ahdqhmhtdhg4bh.centralus-01.azurewebsites.net", "http://dgh-frontend-unique.eastus.azurecontainer.io", "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"}, allowCredentials = "true")
 public class AuthController {
     
     private final AuthenticationManager authenticationManager;
@@ -86,10 +86,18 @@ public class AuthController {
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
             System.out.println("Session created with ID: " + session.getId());
             System.out.println("Session timeout: " + session.getMaxInactiveInterval());
+            System.out.println("Session cookie domain: " + request.getServerName());
+            System.out.println("Session cookie path: " + request.getContextPath());
+            System.out.println("Request origin: " + request.getHeader("Origin"));
+            System.out.println("Request referer: " + request.getHeader("Referer"));
 
             // Generate a simple session token for now (temporary fix)
             String token = "session-token-" + System.currentTimeMillis() + "-" + authentication.getName();
             System.out.println("Generated simple token: " + token);
+            
+            // Ensure session cookie is properly set
+            System.out.println("Setting session cookie attributes...");
+            System.out.println("Session ID: " + session.getId());
 
             Object principal = authentication.getPrincipal();
             System.out.println("Processing principal: " + principal);

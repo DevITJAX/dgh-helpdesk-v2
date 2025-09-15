@@ -1,74 +1,64 @@
 package ma.gov.dgh.helpdesk.controller;
 
-import ma.gov.dgh.helpdesk.config.LdapConfig;
+import ma.gov.dgh.helpdesk.security.LdapGroupMappingService;
+import ma.gov.dgh.helpdesk.security.CustomLdapAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 
-import javax.naming.Context;
-import javax.naming.NamingException;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Test controller for LDAP debugging
+ * Controller for testing LDAP group membership and role assignment
  */
 @RestController
-@RequestMapping("/api/test")
-@Profile("prod")
+@RequestMapping("/api/ldap-test")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"}, allowCredentials = "true")
 public class LdapTestController {
-
+    
     @Autowired
-    private LdapConfig ldapConfig;
-
-    @GetMapping("/ldap-connection")
-    public String testLdapConnection() {
+    private LdapGroupMappingService ldapGroupMappingService;
+    
+    @Autowired
+    private CustomLdapAuthenticationProvider ldapProvider;
+    
+    /**
+     * Test LDAP group mapping for a specific username
+     */
+    @GetMapping("/test-groups/{username}")
+    public Map<String, Object> testUserGroups(@PathVariable String username) {
+        Map<String, Object> result = new HashMap<>();
+        
         try {
-            Hashtable<String, String> env = new Hashtable<>();
-            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-            env.put(Context.PROVIDER_URL, ldapConfig.getUrl());
-            env.put(Context.SECURITY_AUTHENTICATION, "simple");
-            env.put(Context.SECURITY_PRINCIPAL, ldapConfig.getBindUser());
-            env.put(Context.SECURITY_CREDENTIALS, ldapConfig.getBindPassword());
-            env.put(Context.REFERRAL, "follow");
-            env.put("com.sun.jndi.ldap.connect.timeout", "5000");
-            env.put("com.sun.jndi.ldap.read.timeout", "5000");
-
-            DirContext ctx = new InitialDirContext(env);
-            ctx.close();
-            return "LDAP connection successful!";
-        } catch (NamingException e) {
-            return "LDAP connection failed: " + e.getMessage();
+            // This would need to be made public in the LDAP provider
+            // For now, we'll just show the configuration
+            result.put("username", username);
+            result.put("adminGroupPatterns", ldapGroupMappingService.getAdminGroupPatterns());
+            result.put("technicianGroupPatterns", ldapGroupMappingService.getTechnicianGroupPatterns());
+            result.put("employeeGroupPatterns", ldapGroupMappingService.getEmployeeGroupPatterns());
+            result.put("message", "LDAP group mapping configuration loaded successfully");
+            result.put("status", "success");
+            
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            result.put("status", "error");
         }
+        
+        return result;
     }
-
-    @PostMapping("/ldap-auth")
-    public String testLdapAuth(@RequestParam String username, @RequestParam String password) {
-        try {
-            Hashtable<String, String> env = new Hashtable<>();
-            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-            env.put(Context.PROVIDER_URL, ldapConfig.getUrl());
-            env.put(Context.SECURITY_AUTHENTICATION, "simple");
-            env.put(Context.SECURITY_PRINCIPAL, username + "@" + ldapConfig.getDomain());
-            env.put(Context.SECURITY_CREDENTIALS, password);
-            env.put(Context.REFERRAL, "follow");
-            env.put("com.sun.jndi.ldap.connect.timeout", "5000");
-            env.put("com.sun.jndi.ldap.read.timeout", "5000");
-
-            DirContext ctx = new InitialDirContext(env);
-            ctx.close();
-            return "Authentication successful for user: " + username;
-        } catch (NamingException e) {
-            return "Authentication failed for user: " + username + " - " + e.getMessage();
-        }
-    }
-
-    @GetMapping("/ldap-config")
-    public String getLdapConfig() {
-        return "LDAP Config - URL: " + ldapConfig.getUrl() + 
-               ", Domain: " + ldapConfig.getDomain() + 
-               ", Bind User: " + ldapConfig.getBindUser() + 
-               ", Search Base: " + ldapConfig.getSearchBase();
+    
+    /**
+     * Get LDAP group mapping configuration
+     */
+    @GetMapping("/config")
+    public Map<String, Object> getLdapConfig() {
+        Map<String, Object> result = new HashMap<>();
+        
+        result.put("adminGroupPatterns", ldapGroupMappingService.getAdminGroupPatterns());
+        result.put("technicianGroupPatterns", ldapGroupMappingService.getTechnicianGroupPatterns());
+        result.put("employeeGroupPatterns", ldapGroupMappingService.getEmployeeGroupPatterns());
+        result.put("status", "success");
+        
+        return result;
     }
 }

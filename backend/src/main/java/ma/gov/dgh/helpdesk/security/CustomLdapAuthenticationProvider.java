@@ -34,11 +34,13 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
     
     private final UserService userService;
     private final LdapConfig ldapConfig;
+    private final LdapGroupMappingService ldapGroupMappingService;
     
     @Autowired
-    public CustomLdapAuthenticationProvider(UserService userService, LdapConfig ldapConfig) {
+    public CustomLdapAuthenticationProvider(UserService userService, LdapConfig ldapConfig, LdapGroupMappingService ldapGroupMappingService) {
         this.userService = userService;
         this.ldapConfig = ldapConfig;
+        this.ldapGroupMappingService = ldapGroupMappingService;
     }
     
     @Override
@@ -133,7 +135,21 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
         
         if (existingUser.isPresent()) {
             System.out.println("Found existing user: " + existingUser.get());
-            return existingUser.get();
+            
+            // For existing users, check if we should update their role based on current LDAP groups
+            User user = existingUser.get();
+            LdapUserInfo ldapInfo = fetchUserFromLdap(ldapUsername);
+            
+            if (ldapInfo.getGroups() != null && !ldapInfo.getGroups().isEmpty()) {
+                UserRole newRole = ldapGroupMappingService.determineRoleFromGroups(ldapUsername, ldapInfo.getGroups());
+                if (newRole != null && newRole != user.getRole()) {
+                    System.out.println("Updating user role from " + user.getRole() + " to " + newRole + " based on LDAP groups");
+                    user.setRole(newRole);
+                    userService.updateUser(user);
+                }
+            }
+            
+            return user;
         } else {
             System.out.println("No existing user found, creating new user...");
             
@@ -147,11 +163,16 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
             // Determine role based on LDAP groups first, then fallback to username mapping
             UserRole role;
             if (ldapInfo.getGroups() != null && !ldapInfo.getGroups().isEmpty()) {
-                role = determineUserRole(ldapUsername, ldapInfo);
-                System.out.println("User role determined from LDAP groups: " + role);
+                role = ldapGroupMappingService.determineRoleFromGroups(ldapUsername, ldapInfo.getGroups());
+                if (role != null) {
+                    System.out.println("User role determined from LDAP groups: " + role);
+                } else {
+                    role = determineUserRoleSimple(ldapUsername);
+                    System.out.println("No LDAP group match found, using username mapping: " + role);
+                }
             } else {
                 role = determineUserRoleSimple(ldapUsername);
-                System.out.println("User role determined from username mapping: " + role);
+                System.out.println("No LDAP groups found, using username mapping: " + role);
             }
             
             System.out.println("Creating user with - Email: " + email + ", FullName: " + fullName + ", Department: " + department + ", Role: " + role);
@@ -275,25 +296,28 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
         System.out.println("Determining role for user: " + username);
         System.out.println("User LDAP groups: " + ldapInfo.getGroups());
         
-        // Check LDAP groups first
+        // Check LDAP groups first - using flexible matching
         for (String group : ldapInfo.getGroups()) {
             String groupLower = group.toLowerCase();
             System.out.println("Checking group: " + group + " (lowercase: " + groupLower + ")");
             
-            // Check for admin groups
-            if (group.contains("DGH_Helpdesk_Admins")) {
+            // Check for admin groups - match your exact LDAP group names
+            if (groupLower.contains("helpdesk_admin") || 
+                groupLower.contains("dgh admin group")) {
                 System.out.println("User " + username + " assigned ADMIN role based on group: " + group);
                 return UserRole.ADMIN;
             }
             
-            // Check for technician groups
-            if (group.contains("DGH_Helpdesk_Technicians")) {
+            // Check for technician groups - match your exact LDAP group names
+            if (groupLower.contains("helpdesk_tech") || 
+                groupLower.contains("dgh tech group")) {
                 System.out.println("User " + username + " assigned TECHNICIAN role based on group: " + group);
                 return UserRole.TECHNICIAN;
             }
 
-            // Check for employee groups
-            if (group.contains("DGH_Helpdesk_Employees")) {
+            // Check for employee groups - match your exact LDAP group names
+            if (groupLower.contains("helpdesk_user") || 
+                groupLower.contains("dgh user group")) {
                 System.out.println("User " + username + " assigned EMPLOYEE role based on group: " + group);
                 return UserRole.EMPLOYEE;
             }
@@ -304,6 +328,7 @@ public class CustomLdapAuthenticationProvider implements AuthenticationProvider 
         switch (username.toLowerCase()) {
             case "aalami":
             case "fbenali":
+            case "ybenkirane":  // Add your username as ADMIN
                 System.out.println("User " + username + " assigned ADMIN role based on username");
                 return UserRole.ADMIN;
             case "ochakir":
