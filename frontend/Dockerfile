@@ -2,7 +2,7 @@
 FROM node:20-alpine AS build
 
 # Accept build argument for API URL
-ARG REACT_APP_API_BASE_URL=http://localhost:8080
+ARG REACT_APP_API_BASE_URL=http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080
 ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
 
 # Set the working directory
