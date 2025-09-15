@@ -138,7 +138,7 @@ jobs:
       with:
         context: ./frontend
         build-args: |
-          REACT_APP_API_BASE_URL=http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080
+          REACT_APP_API_BASE_URL=
         push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
@@ -284,3 +284,4 @@ jobs:
         echo "Backend URL: http://$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --query "ipAddress.fqdn" --output tsv):8080"
         echo "Frontend URL: http://$(az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-frontend --query "ipAddress.fqdn" --output tsv)"
         echo "=== Your application is now running! ==="
+

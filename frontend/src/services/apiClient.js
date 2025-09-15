@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { authService } from './authService';
 
+// Use explicit check so empty string ('') is respected to indicate same-origin
+const resolvedBaseURL = (typeof process.env.REACT_APP_API_BASE_URL !== 'undefined')
+  ? process.env.REACT_APP_API_BASE_URL
+  : 'http://localhost:8080';
+
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080', // Default to localhost for development
+  baseURL: resolvedBaseURL, // '' means same-origin when fronted by Nginx proxy
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
