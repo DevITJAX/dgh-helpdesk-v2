@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {"http://localhost:3000", "http://20.124.43.230", "http://20.124.43.230:80", "https://dgh-helpdesk-h8ahdqhmhtdhg4bh.centralus-01.azurewebsites.net", "http://dgh-frontend-unique.eastus.azurecontainer.io"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://20.124.43.230", "http://20.124.43.230:80", "https://dgh-helpdesk-h8ahdqhmhtdhg4bh.centralus-01.azurewebsites.net", "http://dgh-frontend-unique.eastus.azurecontainer.io", "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"})
 public class AuthController {
     
     private final AuthenticationManager authenticationManager;

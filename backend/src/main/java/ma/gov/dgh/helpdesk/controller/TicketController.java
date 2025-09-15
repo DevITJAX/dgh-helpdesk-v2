@@ -30,7 +30,8 @@ import java.util.stream.Collectors;
     "http://20.124.43.230",
     "http://20.124.43.230:80",
     "https://dgh-helpdesk-h8ahdqhmhtdhg4bh.centralus-01.azurewebsites.net",
-    "http://dgh-frontend-unique.eastus.azurecontainer.io"
+    "http://dgh-frontend-unique.eastus.azurecontainer.io",
+    "http://dgh-helpdesk-frontend-westus2.westus2.azurecontainer.io"
 })
 public class TicketController {
     
