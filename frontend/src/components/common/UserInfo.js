@@ -76,7 +76,7 @@ const UserInfo = () => {
             Display Name:
           </Typography>
           <Typography variant="body1">
-            {user.displayName || user.fullName || 'N/A'}
+            {user.fullName || user.displayName || 'N/A'}
           </Typography>
         </Box>
         
@@ -114,7 +114,7 @@ const UserInfo = () => {
             User ID:
           </Typography>
           <Typography variant="body1" fontFamily="monospace">
-            {user.id || 'N/A'}
+            {user.userId || user.id || 'N/A'}
           </Typography>
         </Box>
       </Box>
