@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authService } from './authService';
 
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080', // Backend URL from environment or Azure fallback
+  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080', // Backend URL from environment or Azure fallback - UPDATED
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
