@@ -48,7 +48,8 @@ public class SimpleSecurityConfig {
                 .maxSessionsPreventsLogin(false)
             )
             .httpBasic(httpBasic -> {})
-            .formLogin(form -> {});
+            .formLogin(form -> {})
+            .addFilterBefore(new org.springframework.security.web.context.SecurityContextPersistenceFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
