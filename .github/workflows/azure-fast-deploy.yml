@@ -160,17 +160,41 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
-    - name: Deploy or update ACI containers (no delete)
+    - name: Deploy or update ACI containers (update with recreate fallback)
       run: |
         set -e
         echo "Ensuring backend container exists..."
         if az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend >/dev/null 2>&1; then
-          echo "Updating backend image..."
+          echo "Attempting backend in-place update..."
+          set +e
           az container update \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --name dgh-helpdesk-backend \
             --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
             --output table
+          UPDATE_RC=$?
+          set -e
+          if [ "$UPDATE_RC" -ne 0 ]; then
+            echo "az container update unsupported; recreating backend container..."
+            az container delete --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-backend --yes || true
+            az container create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name dgh-helpdesk-backend \
+              --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
+              --registry-login-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+              --registry-username ${{ secrets.ACR_USERNAME }} \
+              --registry-password ${{ secrets.ACR_PASSWORD }} \
+              --os-type Linux \
+              --cpu 1 \
+              --memory 2 \
+              --ports 8080 \
+              --environment-variables SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
+              --secure-environment-variables LDAP_SERVER_URL="${{ secrets.LDAP_SERVER_URL }}" LDAP_SERVER_DOMAIN="${{ secrets.LDAP_SERVER_DOMAIN }}" LDAP_SERVER_BIND_USER="${{ secrets.LDAP_SERVER_BIND_USER }}" LDAP_SERVER_BIND_PASSWORD="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" LDAP_SERVER_SEARCH_BASE="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              --restart-policy Always \
+              --dns-name-label dgh-helpdesk-backend-westus2 \
+              --location "${{ env.LOCATION }}" \
+              --output table
+          fi
         else
           echo "Creating backend container in West US 2..."
           az container create \
@@ -194,12 +218,34 @@ jobs:
 
         echo "Ensuring frontend container exists..."
         if az container show --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-frontend >/dev/null 2>&1; then
-          echo "Updating frontend image..."
+          echo "Attempting frontend in-place update..."
+          set +e
           az container update \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --name dgh-helpdesk-frontend \
             --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
             --output table
+          UPDATE_RC=$?
+          set -e
+          if [ "$UPDATE_RC" -ne 0 ]; then
+            echo "az container update unsupported; recreating frontend container..."
+            az container delete --resource-group ${{ env.RESOURCE_GROUP }} --name dgh-helpdesk-frontend --yes || true
+            az container create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name dgh-helpdesk-frontend \
+              --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+              --registry-login-server ${{ env.AZURE_CONTAINER_REGISTRY }} \
+              --registry-username ${{ secrets.ACR_USERNAME }} \
+              --registry-password ${{ secrets.ACR_PASSWORD }} \
+              --os-type Linux \
+              --cpu 0.5 \
+              --memory 1 \
+              --ports 80 \
+              --restart-policy Always \
+              --dns-name-label dgh-helpdesk-frontend-westus2 \
+              --location "${{ env.LOCATION }}" \
+              --output table
+          fi
         else
           echo "Creating frontend container..."
           az container create \
