@@ -131,7 +131,7 @@ jobs:
           --cpu 1 \
           --memory 2 \
           --ports 8080 \
-          --environment-variables SPRING_PROFILES_ACTIVE=prod JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
+          --environment-variables SPRING_PROFILES_ACTIVE=dev JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
           --secure-environment-variables LDAP_SERVER_URL="${{ secrets.LDAP_SERVER_URL }}" LDAP_SERVER_DOMAIN="${{ secrets.LDAP_SERVER_DOMAIN }}" LDAP_SERVER_BIND_USER="${{ secrets.LDAP_SERVER_BIND_USER }}" LDAP_SERVER_BIND_PASSWORD="${{ secrets.LDAP_SERVER_BIND_PASSWORD }}" LDAP_SERVER_SEARCH_BASE="${{ secrets.LDAP_SERVER_SEARCH_BASE }}" JWT_SECRET="${{ secrets.JWT_SECRET }}" \
           --restart-policy Always \
           --dns-name-label dgh-helpdesk-backend-westus2 \
