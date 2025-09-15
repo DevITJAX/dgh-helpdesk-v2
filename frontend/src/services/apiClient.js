@@ -2,13 +2,17 @@ import axios from 'axios';
 import { authService } from './authService';
 
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080', // Backend URL from environment or Azure fallback - UPDATED
+  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://dgh-helpdesk-backend-westus2.westus2.azurecontainer.io:8080', // Backend URL from environment or Azure fallback - FORCE REBUILD
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Enable cookies for session-based auth
 });
+
+// Debug: Log the API base URL being used
+console.log('API Base URL:', apiClient.defaults.baseURL);
+console.log('Environment REACT_APP_API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
 
 // Request interceptor for session-based authentication
 apiClient.interceptors.request.use(
